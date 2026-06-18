@@ -1,56 +1,44 @@
-import joblib
-import numpy as np
-import pandas as pd
-import uvicorn
-from columns import all_columns
 from schema import MushroomsSchema
+from columns import all_columns
 from fastapi import FastAPI
 from pathlib import Path
-
+import pandas as pd
+import joblib
+import uvicorn
 
 
 BASE_DIR = Path(__file__).parent
 
-model = joblib.load(BASE_DIR / 'model_rf.pkl')
-scaler = joblib.load(BASE_DIR / 'scaler.pkl')
 
+model = joblib.load(BASE_DIR / 'model_rf_Mushrooms.pkl')
+scaler = joblib.load(BASE_DIR / 'scaler_Mushrooms.pkl')
 
 app = FastAPI()
 
 
 @app.post('/predict')
 async def predict(data: MushroomsSchema):
-    # Преобразуем входные данные в DataFrame
     data_dict = data.model_dump(by_alias=True)
     input_data = pd.DataFrame([data_dict])
 
-    # Обработка '?' в stalk-root
-    input_data['stalk-root'] = input_data['stalk-root'].replace('?', np.nan)
-    input_data['stalk-root'] = input_data['stalk-root'].fillna('b')  # Мода из предобработки
+    if 'stalk-root' in input_data.columns:
+        input_data['stalk-root'] = input_data['stalk-root'].replace('?', 'b')
 
-    # One-Hot Encoding
-    input_encoded = pd.get_dummies(input_data)
+    encoded_df = pd.DataFrame(0, index=[0], columns=all_columns)
 
-    # Создаём DataFrame с нулями для всех ожидаемых столбцов
-    zero_df = pd.DataFrame(0, index=[0], columns=all_columns)
-    # Обновляем значения для существующих столбцов
-    for col in input_encoded.columns:
-        if col in all_columns:
-            zero_df[col] = input_encoded[col]
+    for col in input_data.columns:
+        val = input_data.loc[0, col]
+        dummy_col = f"{col}_{val}"
+        if dummy_col in encoded_df.columns:
+            encoded_df.loc[0, dummy_col] = 1
 
-    # Упорядочиваем столбцы
-    input_encoded = zero_df[all_columns]
+    input_scaled = scaler.transform(encoded_df.to_numpy())
 
-    # Преобразуем в numpy массив без имён столбцов
-    input_array = input_encoded.to_numpy()
+    prediction = model.predict(input_scaled)[0]
+    proba = model.predict_proba(input_scaled)[0][1]
 
-    # Предсказание
-    prediction = model.predict(input_array)[0]
-    proba = model.predict_proba(input_array)[0][1]  # Вероятность для класса 1 (poisonous)
-
-    # Формируем ответ
     return {
-        "poisonous": bool(prediction),  # 1 -> True, 0 -> False
+        "poisonous": bool(prediction),
         "probability": float(proba)
     }
 

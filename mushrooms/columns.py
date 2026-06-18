@@ -1,4 +1,4 @@
-all_columns = ['class', 'cap-shape_c', 'cap-shape_f', 'cap-shape_k', 'cap-shape_s',
+all_columns = ['cap-shape_c', 'cap-shape_f', 'cap-shape_k', 'cap-shape_s',
        'cap-shape_x', 'cap-surface_g', 'cap-surface_s', 'cap-surface_y',
        'cap-color_c', 'cap-color_e', 'cap-color_g', 'cap-color_n',
        'cap-color_p', 'cap-color_r', 'cap-color_u', 'cap-color_w',
